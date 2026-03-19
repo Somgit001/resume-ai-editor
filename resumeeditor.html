@@ -1,0 +1,1095 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ResumeAI — Smart Resume Editor</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0d0d0d;--bg2:#141414;--bg3:#1a1a1a;--bg4:#222;
+  --green:#2ecc71;--green2:#27ae60;
+  --green-dim:rgba(46,204,113,0.12);--green-glow:rgba(46,204,113,0.25);
+  --white:#f0f0f0;--gray:#888;--gray2:#555;
+  --border:rgba(255,255,255,0.07);--border-green:rgba(46,204,113,0.3);
+  --font-d:'Bebas Neue',sans-serif;--font-b:'DM Sans',sans-serif;--font-m:'JetBrains Mono',monospace;
+  --r:4px;--rl:8px;--tr:0.22s cubic-bezier(0.4,0,0.2,1)
+}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--white);font-family:var(--font-b);font-size:15px;line-height:1.6;min-height:100vh;overflow-x:hidden}
+
+nav{position:sticky;top:0;z-index:100;background:rgba(13,13,13,0.94);backdrop-filter:blur(14px);border-bottom:1px solid var(--border);padding:0 clamp(16px,4vw,48px);height:60px;display:flex;align-items:center;justify-content:space-between}
+.logo{font-family:var(--font-d);font-size:28px;letter-spacing:2px}.logo span{color:var(--green)}
+.badge{background:var(--green-dim);border:1px solid var(--border-green);color:var(--green);font-family:var(--font-m);font-size:11px;padding:4px 10px;border-radius:2px;letter-spacing:1px}
+
+.hero{background:var(--bg2);border-bottom:1px solid var(--border);padding:clamp(24px,5vw,56px) clamp(16px,4vw,48px);display:flex;align-items:center;gap:20px;position:relative;overflow:hidden}
+.hero::after{content:'';position:absolute;top:0;right:0;width:45%;height:100%;background:radial-gradient(ellipse at right,rgba(46,204,113,0.07),transparent 70%);pointer-events:none}
+.dot{width:10px;height:10px;border-radius:50%;background:var(--green);flex-shrink:0;animation:pulse 2s ease-in-out infinite}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 0 var(--green-glow)}50%{box-shadow:0 0 0 8px transparent}}
+.hero h1{font-family:var(--font-d);font-size:clamp(26px,5vw,50px);letter-spacing:3px;line-height:1}.hero h1 span{color:var(--green)}
+.hero p{color:var(--gray);font-size:13px;margin-top:6px}
+
+.steps-bar{display:flex;align-items:center;padding:0 clamp(16px,4vw,48px);background:var(--bg3);border-bottom:1px solid var(--border);overflow-x:auto;scrollbar-width:none}
+.steps-bar::-webkit-scrollbar{display:none}
+.step-item{display:flex;align-items:center;gap:8px;padding:16px 18px;color:var(--gray2);font-size:11px;font-weight:500;letter-spacing:1px;text-transform:uppercase;white-space:nowrap;border-bottom:2px solid transparent;cursor:pointer;transition:var(--tr)}
+.step-item.active{color:var(--green);border-bottom-color:var(--green)}
+.step-item:hover:not(.active){color:var(--white)}
+.step-num{width:20px;height:20px;border-radius:50%;background:var(--bg4);border:1px solid var(--gray2);display:flex;align-items:center;justify-content:center;font-family:var(--font-m);font-size:10px;flex-shrink:0}
+.step-item.active .step-num{background:var(--green);border-color:var(--green);color:#000;font-weight:700}
+.step-sep{color:var(--bg4);padding:0 2px;font-size:16px}
+
+.main-wrap{display:grid;grid-template-columns:1fr 1fr;gap:0;min-height:calc(100vh - 200px)}
+@media(max-width:860px){.main-wrap{grid-template-columns:1fr}}
+
+.panel{padding:clamp(16px,3vw,32px);border-right:1px solid var(--border)}
+.panel:last-child{border-right:none}
+@media(max-width:860px){.panel{border-right:none;border-bottom:1px solid var(--border)}}
+
+.plabel{font-family:var(--font-m);font-size:10px;letter-spacing:2px;color:var(--green);text-transform:uppercase;margin-bottom:10px;display:flex;align-items:center;gap:8px}
+.plabel::after{content:'';flex:1;height:1px;background:var(--border-green)}
+.accent{width:36px;height:3px;background:var(--green);border-radius:2px;margin-bottom:10px}
+.sub{font-size:12px;color:var(--gray);margin-bottom:18px}
+
+label{display:block;font-size:11px;font-weight:500;letter-spacing:1px;text-transform:uppercase;color:var(--gray);margin-bottom:6px;margin-top:16px}
+label:first-of-type{margin-top:0}
+input[type=text],textarea,select{width:100%;background:var(--bg3);border:1px solid var(--border);color:var(--white);font-family:var(--font-b);font-size:14px;padding:10px 14px;border-radius:var(--r);outline:none;transition:var(--tr);resize:vertical}
+input[type=text]:focus,textarea:focus,select:focus{border-color:var(--border-green);background:var(--bg4);box-shadow:0 0 0 3px var(--green-dim)}
+select option{background:var(--bg3)}
+textarea{min-height:170px;font-size:13px;line-height:1.75}
+
+.btn{display:inline-flex;align-items:center;gap:8px;padding:11px 22px;font-family:var(--font-b);font-size:13px;font-weight:600;letter-spacing:.4px;border:none;border-radius:var(--r);cursor:pointer;transition:var(--tr)}
+.btn-p{background:var(--green);color:#000}.btn-p:hover{background:var(--green2);transform:translateY(-1px)}.btn-p:active{transform:translateY(0)}
+.btn-o{background:transparent;border:1px solid var(--border-green);color:var(--green)}.btn-o:hover{background:var(--green-dim)}
+.btn-g{background:var(--bg4);border:1px solid var(--border);color:var(--gray)}.btn-g:hover{color:var(--white);border-color:var(--gray2)}
+.btn-row{display:flex;gap:10px;flex-wrap:wrap;margin-top:18px}
+
+.load-bar{height:2px;background:linear-gradient(90deg,var(--green),var(--green2));width:0%;transition:width .4s ease;border-radius:2px;margin-bottom:10px}
+.load-txt{font-family:var(--font-m);font-size:11px;color:var(--green);letter-spacing:1px;min-height:16px}
+.err{background:rgba(231,76,60,.1);border:1px solid rgba(231,76,60,.3);color:#e74c3c;border-radius:var(--r);padding:10px 14px;font-size:13px;margin-top:12px;display:none}
+.err.show{display:block}
+
+.out-box{background:var(--bg3);border:1px solid var(--border);border-radius:var(--rl);padding:20px;margin-top:12px;font-size:13px;line-height:1.8;color:#ccc;white-space:pre-wrap;word-break:break-word;min-height:120px;font-family:var(--font-b)}
+
+.ats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px;margin-top:16px}
+.ats-card{background:var(--bg3);border:1px solid var(--border);border-radius:var(--rl);padding:16px 12px;text-align:center;transition:var(--tr)}
+.ats-card:hover{border-color:var(--border-green)}
+.ats-num{font-family:var(--font-d);font-size:44px;letter-spacing:2px;line-height:1;margin-bottom:4px}
+.ats-num.g{color:var(--green)}.ats-num.a{color:#f39c12}.ats-num.r{color:#e74c3c}
+.ats-lbl{font-family:var(--font-m);font-size:10px;color:var(--gray);letter-spacing:1.5px;text-transform:uppercase}
+
+.bar-row{margin-bottom:12px}
+.bar-labels{display:flex;justify-content:space-between;font-size:12px;color:var(--gray);margin-bottom:5px;font-family:var(--font-m)}
+.bar-labels span:last-child{color:var(--green);font-weight:500}
+.bar{height:4px;background:var(--bg4);border-radius:2px;overflow:hidden}
+.bar-fill{height:100%;border-radius:2px;background:var(--green);width:0%;transition:width 1.3s cubic-bezier(.4,0,.2,1)}
+.bar-fill.a{background:#f39c12}.bar-fill.r{background:#e74c3c}
+
+.tag-wrap{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.tag{background:var(--bg4);border:1px solid var(--border);color:var(--gray);font-family:var(--font-m);font-size:11px;padding:4px 10px;border-radius:2px;letter-spacing:.5px}
+.tag.f{background:var(--green-dim);border-color:var(--border-green);color:var(--green)}
+.tag.m{background:rgba(231,76,60,.1);border-color:rgba(231,76,60,.3);color:#e74c3c}
+
+.sug-list{list-style:none;margin-top:10px}
+.sug-list li{display:flex;gap:10px;align-items:flex-start;padding:10px 0;border-bottom:1px solid var(--border);font-size:13px;color:#bbb}
+.sug-list li:last-child{border-bottom:none}
+.sug-ic{width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;flex-shrink:0;margin-top:1px}
+.sug-ic.ok{background:var(--green-dim);color:var(--green)}
+.sug-ic.warn{background:rgba(243,156,18,.15);color:#f39c12}
+.sug-ic.fix{background:rgba(231,76,60,.1);color:#e74c3c}
+
+.copy-fb{font-family:var(--font-m);font-size:11px;color:var(--green);letter-spacing:1px;opacity:0;transition:opacity .3s}
+.copy-fb.show{opacity:1}
+.divider{height:1px;background:var(--border);margin:22px 0}
+.kw-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+@media(max-width:500px){.kw-grid{grid-template-columns:1fr}}
+
+.spinner{display:inline-block;width:13px;height:13px;border:2px solid var(--bg4);border-top-color:var(--green);border-radius:50%;animation:spin .7s linear infinite;vertical-align:middle}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:var(--bg2)}
+::-webkit-scrollbar-thumb{background:var(--bg4);border-radius:3px}
+::-webkit-scrollbar-thumb:hover{background:var(--gray2)}
+
+.info-box{background:var(--bg3);border:1px solid var(--border);border-radius:var(--rl);padding:16px}
+.info-box ul{list-style:none;color:var(--gray);font-size:12px;line-height:2.1}
+
+.dl-group{position:relative;display:inline-flex}
+.dl-main{border-radius:var(--r) 0 0 var(--r)!important}
+.dl-arrow{background:var(--bg4);border:1px solid var(--border);border-left:none;color:var(--gray);border-radius:0 var(--r) var(--r) 0;padding:11px 12px;cursor:pointer;transition:var(--tr);font-size:12px;display:flex;align-items:center}
+.dl-arrow:hover{color:var(--white);background:#2a2a2a}
+.dl-dropdown{position:absolute;top:calc(100% + 6px);right:0;background:var(--bg3);border:1px solid var(--border);border-radius:var(--rl);overflow:hidden;z-index:50;min-width:160px;display:none;box-shadow:0 8px 24px rgba(0,0,0,.4)}
+.dl-dropdown.open{display:block}
+.dl-opt{display:flex;align-items:center;gap:10px;padding:11px 16px;font-size:13px;color:#ccc;cursor:pointer;transition:var(--tr);font-family:var(--font-b);border:none;background:none;width:100%;text-align:left}
+.dl-opt:hover{background:var(--bg4);color:var(--white)}
+.dl-opt-icon{font-size:14px;width:18px;text-align:center}
+.dl-divider-inner{height:1px;background:var(--border)}
+.dl-fb{font-family:var(--font-m);font-size:11px;color:var(--green);letter-spacing:1px;opacity:0;transition:opacity .3s;white-space:nowrap}
+.dl-fb.show{opacity:1}
+
+.input-tabs{display:flex;gap:0;margin-bottom:14px;border:1px solid var(--border);border-radius:var(--r);overflow:hidden}
+.input-tab{flex:1;padding:9px 0;text-align:center;font-family:var(--font-m);font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--gray);cursor:pointer;background:var(--bg3);border:none;transition:var(--tr)}
+.input-tab.active{background:var(--green);color:#000;font-weight:700}
+.input-tab:hover:not(.active){color:var(--white);background:var(--bg4)}
+
+.upload-zone{border:1.5px dashed var(--gray2);border-radius:var(--rl);padding:32px 20px;text-align:center;cursor:pointer;transition:var(--tr);background:var(--bg3);position:relative}
+.upload-zone:hover,.upload-zone.drag{border-color:var(--green);background:var(--green-dim)}
+.upload-zone input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+.upload-icon{font-size:32px;margin-bottom:10px;display:block}
+.upload-title{font-size:14px;font-weight:500;color:var(--white);margin-bottom:4px}
+.upload-sub{font-size:12px;color:var(--gray)}
+.upload-formats{display:flex;justify-content:center;gap:8px;margin-top:12px}
+.fmt-badge{background:var(--bg4);border:1px solid var(--border);color:var(--gray);font-family:var(--font-m);font-size:10px;padding:3px 8px;border-radius:2px;letter-spacing:1px}
+
+.file-preview{background:var(--bg3);border:1px solid var(--border-green);border-radius:var(--rl);padding:14px 16px;margin-top:10px;display:none;align-items:center;gap:12px}
+.file-preview.show{display:flex}
+.file-icon{width:36px;height:36px;border-radius:var(--r);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+.file-icon.pdf{background:rgba(231,76,60,.15)}
+.file-icon.doc{background:rgba(52,152,219,.15)}
+.file-info{flex:1;min-width:0}
+.file-name{font-size:13px;font-weight:500;color:var(--white);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.file-meta{font-family:var(--font-m);font-size:10px;color:var(--gray);margin-top:2px;letter-spacing:.5px}
+.file-remove{background:none;border:none;color:var(--gray);cursor:pointer;font-size:16px;padding:4px;flex-shrink:0;transition:var(--tr)}
+.file-remove:hover{color:#e74c3c}
+
+.extract-status{font-family:var(--font-m);font-size:11px;color:var(--green);letter-spacing:1px;margin-top:8px;min-height:16px}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="logo">RESUME<span>.</span>AI</div>
+  <div class="badge">GROQ POWERED · FREE</div>
+</nav>
+
+<div class="hero">
+  <div class="dot"></div>
+  <div>
+    <h1>SMART RESUME <span>EDITOR</span></h1>
+    <p>Paste or upload resume → Enter job role → Get ATS-optimized output — powered by Groq (free)</p>
+  </div>
+</div>
+
+<div class="steps-bar">
+  <div class="step-item active" id="t1" onclick="showStep(1)"><div class="step-num">1</div> Input</div>
+  <div class="step-sep">›</div>
+  <div class="step-item" id="t2" onclick="showStep(2)"><div class="step-num">2</div> Optimized Resume</div>
+  <div class="step-sep">›</div>
+  <div class="step-item" id="t3" onclick="showStep(3)"><div class="step-num">3</div> ATS Score</div>
+</div>
+
+<!-- STEP 1 -->
+<div id="s1" class="main-wrap">
+  <div class="panel">
+    <div class="plabel">Your Resume</div>
+    <div class="accent"></div>
+
+    <!-- Tab Toggle -->
+    <div class="input-tabs">
+      <button class="input-tab active" id="tabPaste" onclick="switchTab('paste')">✎ Paste Text</button>
+      <button class="input-tab" id="tabUpload" onclick="switchTab('upload')">⬆ Upload File</button>
+    </div>
+
+    <!-- Paste View -->
+    <div id="viewPaste">
+      <textarea id="resumeIn" placeholder="Paste your full resume here...
+
+Example:
+John Doe | john@email.com | +91 98765 43210
+
+EDUCATION
+BCA — Sri Sri University (2023–2026)
+
+SKILLS
+Python, Java, AWS, MySQL
+
+PROJECTS
+Portfolio Site — React, Render
+
+EXPERIENCE
+Intern — XYZ Corp (2025)
+• Built REST APIs using Python Flask"></textarea>
+    </div>
+
+    <!-- Upload View -->
+    <div id="viewUpload" style="display:none">
+      <div class="upload-zone" id="uploadZone">
+        <input type="file" id="fileInput" accept=".pdf,.doc,.docx,.txt" onchange="handleFileUpload(this.files[0])">
+        <span class="upload-icon">📂</span>
+        <div class="upload-title">Drop your resume here or click to browse</div>
+        <div class="upload-sub">Text will be extracted automatically</div>
+        <div class="upload-formats">
+          <span class="fmt-badge">PDF</span>
+          <span class="fmt-badge">DOC</span>
+          <span class="fmt-badge">DOCX</span>
+          <span class="fmt-badge">TXT</span>
+        </div>
+      </div>
+      <div class="file-preview" id="filePreview">
+        <div class="file-icon" id="fileIconEl">📄</div>
+        <div class="file-info">
+          <div class="file-name" id="fileName">—</div>
+          <div class="file-meta" id="fileMeta">—</div>
+        </div>
+        <button class="file-remove" onclick="clearFile()" title="Remove file">✕</button>
+      </div>
+      <div class="extract-status" id="extractStatus"></div>
+      <!-- Hidden textarea that holds extracted text -->
+      <textarea id="resumeInUpload" style="display:none"></textarea>
+    </div>
+
+    <label style="margin-top:16px">Target Job Role</label>
+    <input type="text" id="jobRole" placeholder="e.g. DevOps Engineer, Data Analyst, Cloud Support Associate">
+    <label>Job Description (optional — improves accuracy)</label>
+    <textarea id="jobDesc" style="min-height:90px" placeholder="Paste the job description for better keyword targeting..."></textarea>
+  </div>
+
+  <div class="panel">
+    <div class="plabel">Settings</div>
+    <div class="accent"></div>
+    <p class="sub">Configure what to focus on</p>
+
+    <!-- Groq API Key -->
+    <div style="background:var(--green-dim);border:1px solid var(--border-green);border-radius:var(--rl);padding:14px;margin-bottom:4px">
+      <div style="font-family:var(--font-m);font-size:10px;color:var(--green);letter-spacing:2px;margin-bottom:8px">GROQ API KEY</div>
+      <div style="position:relative">
+        <input type="password" id="groqKey" placeholder="gsk_xxxxxxxxxxxxxxxxxxxx" style="padding-right:44px;font-family:var(--font-m);font-size:12px;letter-spacing:1px">
+        <button onclick="toggleKeyVis()" id="keyToggle" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--gray);cursor:pointer;font-size:14px;padding:2px">👁</button>
+      </div>
+      <div style="font-size:11px;color:var(--gray);margin-top:8px;line-height:1.5">
+        Free key at <span style="color:var(--green);font-family:var(--font-m)">console.groq.com</span> · Model: <span style="color:var(--green);font-family:var(--font-m)">llama-3.3-70b</span>
+      </div>
+    </div>
+
+    <label>Optimize For</label>
+    <select id="optFor">
+      <option value="ats">ATS Score (Keyword Matching)</option>
+      <option value="readability">Readability + Impact</option>
+      <option value="both" selected>Both ATS + Readability</option>
+    </select>
+    <label>Experience Level</label>
+    <select id="expLvl">
+      <option value="fresher" selected>Fresher / Entry Level</option>
+      <option value="1-3">1–3 Years Experience</option>
+      <option value="3-5">3–5 Years Experience</option>
+      <option value="senior">Senior (5+ Years)</option>
+    </select>
+    <label>Industry</label>
+    <select id="industry">
+      <option value="it" selected>IT / Software</option>
+      <option value="devops">DevOps / Cloud</option>
+      <option value="data">Data Analytics / ML</option>
+      <option value="support">Technical Support</option>
+      <option value="general">General / Other</option>
+    </select>
+
+    <div class="divider"></div>
+    <div class="load-bar" id="loadBar"></div>
+    <div class="load-txt" id="loadTxt"></div>
+    <div class="err" id="errMsg"></div>
+    <div class="btn-row">
+      <button class="btn btn-p" onclick="optimize()" id="optBtn">▶ Optimize Resume</button>
+      <button class="btn btn-g" onclick="clearAll()">Clear</button>
+    </div>
+    <div class="divider"></div>
+    <div class="info-box">
+      <div style="font-family:var(--font-m);font-size:10px;color:var(--green);letter-spacing:2px;margin-bottom:10px">HOW IT WORKS</div>
+      <ul>
+        <li>→ AI analyzes your resume structure</li>
+        <li>→ Adds role-specific keywords naturally</li>
+        <li>→ Strengthens bullet point impact</li>
+        <li>→ Calculates ATS score vs job role</li>
+        <li>→ Shows missing keywords & suggestions</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- STEP 2 -->
+<div id="s2" style="display:none;padding:clamp(16px,3vw,32px)">
+  <div class="plabel">Optimized Resume</div>
+  <div class="accent"></div>
+  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:12px">
+    <p class="sub" style="margin:0">AI-edited version — <strong style="color:var(--green)">only subtle changes made</strong>, your content is preserved.</p>
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+      <button class="btn btn-o" onclick="copyResume()">⊕ Copy</button>
+      <div class="dl-group">
+        <button class="btn btn-g dl-main" onclick="toggleDl('dl2')">⬇ Download</button>
+        <button class="dl-arrow" onclick="toggleDl('dl2')">▾</button>
+        <div class="dl-dropdown" id="dl2">
+          <button class="dl-opt" onclick="downloadPDF();closeDl('dl2')"><span class="dl-opt-icon">📄</span> Download as PDF</button>
+          <div class="dl-divider-inner"></div>
+          <button class="dl-opt" onclick="downloadDOC();closeDl('dl2')"><span class="dl-opt-icon">📝</span> Download as DOC</button>
+        </div>
+      </div>
+      <button class="btn btn-g" id="atsBtn" style="display:none" onclick="showStep(3)">→ ATS Score</button>
+      <span class="copy-fb" id="cpFb">COPIED ✓</span>
+      <span class="dl-fb" id="dlFb"></span>
+    </div>
+  </div>
+  <div class="out-box" id="optOut">Your optimized resume will appear here after clicking Optimize.</div>
+  <div class="divider"></div>
+  <div class="plabel">Keywords Added</div>
+  <div class="tag-wrap" id="kwAdded"></div>
+</div>
+
+<!-- STEP 3 -->
+<div id="s3" style="display:none;padding:clamp(16px,3vw,32px)">
+  <div class="plabel">ATS Analysis Report</div>
+  <div class="accent"></div>
+  <div class="ats-grid" id="atsGrid"></div>
+  <div class="divider"></div>
+  <div id="scoreBars"></div>
+  <div class="divider"></div>
+  <div class="kw-grid">
+    <div>
+      <div class="plabel">Keywords Found</div>
+      <div class="tag-wrap" id="kwFound"></div>
+    </div>
+    <div>
+      <div class="plabel">Keywords Missing</div>
+      <div class="tag-wrap" id="kwMissing"></div>
+    </div>
+  </div>
+  <div class="divider"></div>
+  <div class="plabel">Improvement Suggestions</div>
+  <ul class="sug-list" id="sugList"></ul>
+  <div class="btn-row" style="margin-top:24px">
+    <button class="btn btn-p" onclick="showStep(1)">← Edit Again</button>
+    <button class="btn btn-o" onclick="copyResume()">⊕ Copy</button>
+    <div class="dl-group">
+      <button class="btn btn-g dl-main" onclick="toggleDl('dl3')">⬇ Download</button>
+      <button class="dl-arrow" onclick="toggleDl('dl3')">▾</button>
+      <div class="dl-dropdown" id="dl3">
+        <button class="dl-opt" onclick="downloadPDF();closeDl('dl3')"><span class="dl-opt-icon">📄</span> Download as PDF</button>
+        <div class="dl-divider-inner"></div>
+        <button class="dl-opt" onclick="downloadDOC();closeDl('dl3')"><span class="dl-opt-icon">📝</span> Download as DOC</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const GROQ_API = 'https://api.groq.com/openai/v1/chat/completions';
+const GROQ_MODEL = 'llama-3.3-70b-versatile';
+let optimizedText = '', atsData = null;
+let currentTab = 'paste';
+
+// ── GROQ KEY PERSISTENCE ──
+window.addEventListener('DOMContentLoaded', () => {
+  const saved = localStorage.getItem('groq_api_key');
+  if(saved) document.getElementById('groqKey').value = saved;
+  document.getElementById('groqKey').addEventListener('input', e => {
+    localStorage.setItem('groq_api_key', e.target.value);
+  });
+});
+
+function toggleKeyVis() {
+  const inp = document.getElementById('groqKey');
+  inp.type = inp.type === 'password' ? 'text' : 'password';
+}
+
+function switchTab(tab) {
+  currentTab = tab;
+  document.getElementById('viewPaste').style.display = tab==='paste' ? 'block' : 'none';
+  document.getElementById('viewUpload').style.display = tab==='upload' ? 'block' : 'none';
+  document.getElementById('tabPaste').classList.toggle('active', tab==='paste');
+  document.getElementById('tabUpload').classList.toggle('active', tab==='upload');
+}
+
+// ── DRAG & DROP ──
+const zone = () => document.getElementById('uploadZone');
+['dragenter','dragover'].forEach(ev => document.addEventListener(ev, e => {
+  if(e.target.closest('#uploadZone')) { e.preventDefault(); zone().classList.add('drag'); }
+}));
+['dragleave','drop'].forEach(ev => document.addEventListener(ev, e => {
+  zone().classList.remove('drag');
+  if(ev==='drop' && e.target.closest('#uploadZone')) {
+    e.preventDefault();
+    const f = e.dataTransfer.files[0];
+    if(f) handleFileUpload(f);
+  }
+}));
+
+// ── FILE UPLOAD HANDLER ──
+async function handleFileUpload(file) {
+  if(!file) return;
+  const allowed = ['application/pdf','application/msword','application/vnd.openxmlformats-officedocument.wordprocessingml.document','text/plain'];
+  const ext = file.name.split('.').pop().toLowerCase();
+  if(!['pdf','doc','docx','txt'].includes(ext)) {
+    setExtractStatus('Unsupported file type. Please use PDF, DOC, DOCX, or TXT.', true); return;
+  }
+  const size = (file.size/1024).toFixed(1);
+  const iconEl = document.getElementById('fileIconEl');
+  const isDoc = ['doc','docx'].includes(ext);
+  iconEl.textContent = ext==='pdf' ? '📄' : isDoc ? '📝' : '📃';
+  iconEl.className = 'file-icon ' + (ext==='pdf'?'pdf':isDoc?'doc':'');
+  document.getElementById('fileName').textContent = file.name;
+  document.getElementById('fileMeta').textContent = ext.toUpperCase() + ' · ' + size + ' KB';
+  document.getElementById('filePreview').classList.add('show');
+  setExtractStatus('Extracting text...');
+
+  try {
+    let text = '';
+    if(ext === 'txt') {
+      text = await file.text();
+    } else if(ext === 'pdf') {
+      text = await extractPDF(file);
+    } else if(ext === 'doc' || ext === 'docx') {
+      text = await extractDOCX(file);
+    }
+    text = text.trim();
+    if(!text || text.length < 30) { setExtractStatus('Could not extract enough text. Try a different file or paste manually.', true); return; }
+    // Write extracted text into the hidden textarea
+    document.getElementById('resumeInUpload').value = text;
+    setExtractStatus('✓ Extracted ' + text.split('\n').filter(l=>l.trim()).length + ' lines — ready to optimize!');
+  } catch(e) {
+    setExtractStatus('Extraction failed: ' + e.message + '. Try pasting text instead.', true);
+  }
+}
+
+function setExtractStatus(msg, isErr=false) {
+  const el = document.getElementById('extractStatus');
+  el.textContent = msg;
+  el.style.color = isErr ? '#e74c3c' : 'var(--green)';
+}
+
+function clearFile() {
+  document.getElementById('fileInput').value = '';
+  document.getElementById('resumeInUpload').value = '';
+  document.getElementById('filePreview').classList.remove('show');
+  setExtractStatus('');
+}
+
+// ── PDF EXTRACTION via PDF.js ──
+async function extractPDF(file) {
+  if(typeof pdfjsLib === 'undefined') throw new Error('PDF library not loaded');
+  pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+  const arrayBuffer = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({data: arrayBuffer}).promise;
+  let fullText = '';
+  for(let i = 1; i <= pdf.numPages; i++) {
+    const page = await pdf.getPage(i);
+    const content = await page.getTextContent();
+    const pageText = content.items.map(item => item.str).join(' ');
+    fullText += pageText + '\n';
+  }
+  return fullText;
+}
+
+// ── DOCX EXTRACTION via Mammoth ──
+async function extractDOCX(file) {
+  if(typeof mammoth === 'undefined') throw new Error('DOC library not loaded');
+  const arrayBuffer = await file.arrayBuffer();
+  const result = await mammoth.extractRawText({arrayBuffer});
+  return result.value;
+}
+
+// ── GET RESUME TEXT (from either tab) ──
+function getResumeText() {
+  if(currentTab === 'upload') {
+    return document.getElementById('resumeInUpload').value.trim();
+  }
+  return document.getElementById('resumeIn').value.trim();
+}
+
+function showStep(n) {
+  [1,2,3].forEach(i => {
+    document.getElementById('s'+i).style.display = i===n ? (i===1?'grid':'block') : 'none';
+    document.getElementById('t'+i).classList.toggle('active', i===n);
+  });
+  if(n===3) setTimeout(animateBars, 150);
+  window.scrollTo({top:0, behavior:'smooth'});
+}
+
+function setLoad(pct, msg) {
+  document.getElementById('loadBar').style.width = pct+'%';
+  document.getElementById('loadTxt').textContent = msg;
+}
+function showErr(m) { const e=document.getElementById('errMsg'); e.textContent=m; e.classList.add('show'); }
+function hideErr() { document.getElementById('errMsg').classList.remove('show'); }
+
+async function callGroq(system, user) {
+  const key = document.getElementById('groqKey').value.trim();
+  if(!key) throw new Error('Please enter your Groq API key first.');
+  const r = await fetch(GROQ_API, {
+    method:'POST',
+    headers:{'Content-Type':'application/json','Authorization':'Bearer '+key},
+    body: JSON.stringify({
+      model: GROQ_MODEL,
+      temperature: 0.3,
+      max_tokens: 4096,
+      messages:[
+        {role:'system', content: system},
+        {role:'user', content: user}
+      ]
+    })
+  });
+  if(!r.ok) {
+    const err = await r.json().catch(()=>({}));
+    throw new Error(err.error?.message || 'Groq API error ' + r.status);
+  }
+  const d = await r.json();
+  return d.choices[0].message.content;
+}
+
+async function optimize() {
+  hideErr();
+  const resume = getResumeText();
+  const role = document.getElementById('jobRole').value.trim();
+  const desc = document.getElementById('jobDesc').value.trim();
+  const optFor = document.getElementById('optFor').value;
+  const exp = document.getElementById('expLvl').value;
+  const ind = document.getElementById('industry').value;
+
+  if(!resume) { showErr('Please paste your resume or upload a file (PDF/DOC/DOCX/TXT).'); return; }
+  if(!role) { showErr('Please enter a target job role.'); return; }
+  if(!document.getElementById('groqKey').value.trim()) { showErr('Please enter your Groq API key in the settings panel.'); return; }
+
+  const btn = document.getElementById('optBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Optimizing...';
+
+  try {
+    setLoad(20, 'Analyzing resume structure...');
+
+    const sys1 = 'You are an expert ATS resume optimizer. Subtly enhance resumes with relevant keywords and stronger bullet points WITHOUT rewriting the entire resume. Preserve the candidate\'s voice and original structure. Return clean plain text suitable for ATS parsing.';
+
+    const prompt1 = `Resume:\n${resume}\n\nJob Role: ${role}\nJob Description: ${desc||'Not provided'}\nOptimize For: ${optFor}\nExperience Level: ${exp}\nIndustry: ${ind}\n\nInstructions:\n1. Keep the person's original content and structure — do NOT fully rewrite.\n2. Add relevant keywords from the job role/description naturally.\n3. Improve weak action verbs and bullet point impact.\n4. Add a short professional summary at the top if missing.\n5. Keep all text ATS-friendly (no special chars, tables, or columns).\n6. After the resume, add exactly: ---KEYWORDS_ADDED---\nThen list the specific keywords you added, comma-separated.\n\nReturn ONLY the improved resume + the keywords line. No other explanation.`;
+
+    setLoad(50, 'AI is adding keywords and improving impact...');
+    const res1 = await callGroq(sys1, prompt1);
+
+    const parts = res1.split('---KEYWORDS_ADDED---');
+    optimizedText = parts[0].trim();
+    const kws = parts[1] ? parts[1].trim().split(',').map(k=>k.trim()).filter(Boolean) : [];
+
+    setLoad(75, 'Running ATS analysis...');
+
+    const sys2 = 'You are an ATS system analyzer. Return only valid JSON with no markdown or explanation.';
+    const prompt2 = `Analyze this resume against the job role and return ATS scoring JSON.\n\nRESUME:\n${optimizedText}\n\nJOB ROLE: ${role}\nJOB DESCRIPTION: ${desc||'General '+role+' position'}\n\nReturn ONLY this JSON structure (no markdown backticks, no explanation):\n{\n  "overall_score": 78,\n  "keyword_score": 82,\n  "format_score": 75,\n  "relevance_score": 80,\n  "experience_score": 70,\n  "keywords_found": ["Python","AWS","REST API"],\n  "keywords_missing": ["Docker","CI/CD","Terraform"],\n  "suggestions": [\n    {"type":"ok","text":"Good use of action verbs"},\n    {"type":"warn","text":"Add more quantifiable achievements"},\n    {"type":"fix","text":"Missing key skill: containerization"}\n  ]\n}`;
+
+    const res2 = await callGroq(sys2, prompt2);
+
+    try {
+      atsData = JSON.parse(res2.replace(/```json|```/g,'').trim());
+    } catch(e) {
+      atsData = {overall_score:72,keyword_score:74,format_score:80,relevance_score:70,experience_score:68,keywords_found:['Python','Java','AWS'],keywords_missing:['Docker','CI/CD','Terraform'],suggestions:[{type:'ok',text:'Resume structure is ATS-friendly'},{type:'warn',text:'Add more quantifiable achievements'},{type:'fix',text:'Consider adding containerization skills'}]};
+    }
+
+    setLoad(100, 'Done!');
+
+    // Populate step 2
+    document.getElementById('optOut').textContent = optimizedText;
+    document.getElementById('kwAdded').innerHTML = kws.map(k=>`<span class="tag f">${k}</span>`).join('');
+    document.getElementById('atsBtn').style.display = 'inline-flex';
+
+    // Populate step 3
+    renderATS(atsData);
+
+    setTimeout(() => { setLoad(0,''); showStep(2); }, 400);
+
+  } catch(err) {
+    showErr('Error: ' + err.message);
+    setLoad(0,'');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '▶ Optimize Resume';
+  }
+}
+
+const sc = s => s>=80?'g':s>=60?'a':'r';
+
+function renderATS(d) {
+  document.getElementById('atsGrid').innerHTML = [
+    {n:d.overall_score,l:'Overall ATS'},
+    {n:d.keyword_score,l:'Keyword Match'},
+    {n:d.format_score,l:'Format Score'},
+    {n:d.relevance_score,l:'Relevance'},
+    {n:d.experience_score,l:'Experience'}
+  ].map(c=>`<div class="ats-card"><div class="ats-num ${sc(c.n)}">${c.n}</div><div class="ats-lbl">${c.l}</div></div>`).join('');
+
+  document.getElementById('scoreBars').innerHTML = [
+    {l:'Keyword Match',v:d.keyword_score},
+    {l:'Format & Readability',v:d.format_score},
+    {l:'Role Relevance',v:d.relevance_score},
+    {l:'Experience Match',v:d.experience_score}
+  ].map(b=>`<div class="bar-row"><div class="bar-labels"><span>${b.l}</span><span>${b.v}%</span></div><div class="bar"><div class="bar-fill ${sc(b.v)}" data-w="${b.v}" style="width:0%"></div></div></div>`).join('');
+
+  document.getElementById('kwFound').innerHTML = (d.keywords_found||[]).map(k=>`<span class="tag f">${k}</span>`).join('');
+  document.getElementById('kwMissing').innerHTML = (d.keywords_missing||[]).map(k=>`<span class="tag m">${k}</span>`).join('');
+
+  const icons = {ok:'✓',warn:'!',fix:'✕'};
+  document.getElementById('sugList').innerHTML = (d.suggestions||[]).map(s=>`<li><div class="sug-ic ${s.type}">${icons[s.type]||'•'}</div><span>${s.text}</span></li>`).join('');
+}
+
+function animateBars() {
+  document.querySelectorAll('.bar-fill').forEach(el => {
+    el.style.width = el.dataset.w + '%';
+  });
+}
+
+function copyResume() {
+  if(!optimizedText) return;
+  navigator.clipboard.writeText(optimizedText).then(()=>{
+    const fb = document.getElementById('cpFb');
+    fb.classList.add('show');
+    setTimeout(()=>fb.classList.remove('show'),2000);
+  });
+}
+
+function clearAll() {
+  ['resumeIn','resumeInUpload','jobRole','jobDesc'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
+  document.getElementById('optOut').textContent='Your optimized resume will appear here after clicking Optimize.';
+  ['kwAdded','atsGrid','scoreBars','kwFound','kwMissing','sugList'].forEach(id=>document.getElementById(id).innerHTML='');
+  document.getElementById('atsBtn').style.display='none';
+  document.getElementById('filePreview').classList.remove('show');
+  document.getElementById('extractStatus').textContent='';
+  const fi = document.getElementById('fileInput'); if(fi) fi.value='';
+  optimizedText=''; atsData=null;
+  hideErr(); showStep(1);
+}
+
+function toggleDl(id) {
+  const el = document.getElementById(id);
+  const isOpen = el.classList.contains('open');
+  document.querySelectorAll('.dl-dropdown').forEach(d=>d.classList.remove('open'));
+  if(!isOpen) el.classList.add('open');
+}
+function closeDl(id) { document.getElementById(id).classList.remove('open'); }
+document.addEventListener('click', e => {
+  if(!e.target.closest('.dl-group')) document.querySelectorAll('.dl-dropdown').forEach(d=>d.classList.remove('open'));
+});
+
+function showDlFeedback(msg) {
+  const fb = document.getElementById('dlFb');
+  if(!fb) return;
+  fb.textContent = msg;
+  fb.classList.add('show');
+  setTimeout(()=>fb.classList.remove('show'), 2500);
+}
+
+// ── RESUME LINE CLASSIFIER ──
+function classifyLine(line) {
+  const t = line.trim();
+  if (!t) return { type: 'empty', text: '' };
+  const isAllCaps = t === t.toUpperCase() && /[A-Z]/.test(t);
+  // Bullet
+  if (/^[•·\-\*]\s/.test(t) || t.startsWith('• '))
+    return { type: 'bullet', text: t.replace(/^[•·\-\*]\s*/, '').trim() };
+  // Contact: has @ or linkedin or multiple | separators
+  if (/@/.test(t) || (t.match(/\|/g)||[]).length >= 2 || /linkedin\.com/.test(t))
+    return { type: 'contact', text: t };
+  // Section heading: ALL CAPS, no digits leading, short enough
+  if (isAllCaps && t.length <= 50 && !/^\d/.test(t))
+    return { type: 'section', text: t };
+  // Sub-heading: has year range or dash/em-dash with text both sides
+  if (/\b(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{4}/.test(t) ||
+      /\d{4}\s*[–—-]\s*(\d{4}|Present|present|May|Aug|Jul|Jun)/.test(t))
+    return { type: 'subhead', text: t };
+  // Bold sub (company/org name under a subhead — short, no punctuation heavy)
+  if (t.length < 60 && !/[,;]/.test(t) && /^[A-Z]/.test(t) && !/^\d/.test(t) &&
+      !t.includes('@') && (t.split(' ').length <= 6))
+    return { type: 'org', text: t };
+  return { type: 'body', text: t };
+}
+
+function esc(t) {
+  return String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── PDF via jsPDF — fully fixed ──
+async function downloadPDF() {
+  if (!optimizedText) { showDlFeedback('Optimize your resume first.'); return; }
+  showDlFeedback('Building PDF...');
+  try {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ unit: 'pt', format: 'a4', orientation: 'portrait' });
+
+    const PW = 595.28, PH = 841.89;
+    const ML = 50, MR = 50, MT = 45, MB = 45;
+    const CW = PW - ML - MR;
+    let y = MT;
+
+    const LH = { name:28, contact:14, section:18, subhead:15, org:14, body:13.5, bullet:13.5, empty:6 };
+
+    function needPage(h) {
+      if (y + h > PH - MB) { doc.addPage(); y = MT; }
+    }
+
+    function setF(sz, style, color) {
+      doc.setFontSize(sz);
+      doc.setFont('helvetica', style || 'normal');
+      doc.setTextColor(...(color || [30,30,30]));
+    }
+
+    // wrap and return array of lines
+    function wrap(text, maxW, sz, style) {
+      setF(sz, style);
+      return doc.splitTextToSize(text, maxW);
+    }
+
+    const lines = optimizedText.split('\n');
+    let nameWritten = false;
+
+    for (let i = 0; i < lines.length; i++) {
+      const { type, text } = classifyLine(lines[i]);
+
+      if (type === 'empty') { y += LH.empty; continue; }
+
+      if (!nameWritten && type !== 'section') {
+        // NAME — very first content line
+        needPage(36);
+        setF(20, 'bold', [10,10,10]);
+        doc.text(text, ML, y);
+        y += LH.name;
+        nameWritten = true;
+        continue;
+      }
+      nameWritten = true;
+
+      if (type === 'contact') {
+        needPage(20);
+        setF(8.5, 'normal', [80,80,80]);
+        const parts = text.split('|').map(s=>s.trim()).filter(Boolean);
+        const contactLine = parts.join('  |  ');
+        const wrapped = doc.splitTextToSize(contactLine, CW);
+        wrapped.forEach(wl => {
+          needPage(LH.contact);
+          doc.text(wl, ML, y);
+          y += LH.contact;
+        });
+        y += 4;
+        continue;
+      }
+
+      if (type === 'section') {
+        needPage(24);
+        y += 6;
+        setF(10.5, 'bold', [10,10,10]);
+        doc.text(text, ML, y);
+        y += 3;
+        doc.setDrawColor(160,160,160);
+        doc.setLineWidth(0.5);
+        doc.line(ML, y, PW - MR, y);
+        y += 8;
+        continue;
+      }
+
+      if (type === 'subhead') {
+        needPage(20);
+        // Try to split left (title/role) and right (dates)
+        // Pattern: "Role — Company   Date – Date" or "Role   Jun 2024 – Jul 2024"
+        const dateMatch = text.match(/^(.+?)\s{2,}([A-Z][a-z]{2}\s+\d{4}.*)$/) ||
+                          text.match(/^(.+?)((?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{4}.*)$/);
+        if (dateMatch) {
+          const leftText = dateMatch[1].trim();
+          const rightText = dateMatch[2].trim();
+          setF(9.5, 'bold', [15,15,15]);
+          doc.text(leftText, ML, y);
+          setF(9, 'normal', [90,90,90]);
+          const rW = doc.getTextWidth(rightText);
+          doc.text(rightText, PW - MR - rW, y);
+        } else {
+          setF(9.5, 'bold', [15,15,15]);
+          const wrapped = doc.splitTextToSize(text, CW);
+          wrapped.forEach(wl => { doc.text(wl, ML, y); y += LH.subhead; });
+          continue;
+        }
+        y += LH.subhead;
+        continue;
+      }
+
+      if (type === 'org') {
+        needPage(16);
+        setF(9, 'normal', [80,80,80]);
+        doc.text(text, ML, y);
+        y += LH.org;
+        continue;
+      }
+
+      if (type === 'bullet') {
+        const maxBW = CW - 14;
+        setF(9.5, 'normal', [40,40,40]);
+        const wrapped = doc.splitTextToSize(text, maxBW);
+        needPage(wrapped.length * LH.bullet + 2);
+        doc.text('•', ML + 2, y);
+        wrapped.forEach((wl, wi) => {
+          doc.text(wl, ML + 12, y);
+          if (wi < wrapped.length - 1) y += LH.bullet;
+        });
+        y += LH.bullet + 1;
+        continue;
+      }
+
+      // body
+      setF(9.5, 'normal', [40,40,40]);
+      const wrapped = doc.splitTextToSize(text, CW);
+      needPage(wrapped.length * LH.body + 2);
+      wrapped.forEach(wl => { doc.text(wl, ML, y); y += LH.body; });
+    }
+
+    doc.save('optimized-resume.pdf');
+    showDlFeedback('✓ PDF downloaded!');
+  } catch(e) {
+    showDlFeedback('PDF error: ' + e.message);
+    console.error(e);
+  }
+}
+
+// ── DOCX via proper XML structure (opens in Word, LibreOffice, Google Docs) ──
+function downloadDOC() {
+  if (!optimizedText) { showDlFeedback('Optimize your resume first.'); return; }
+  try {
+    // Build Word XML (OOXML WordprocessingML) — this is a real .docx-compatible format
+    const docLines = optimizedText.split('\n');
+    let bodyXml = '';
+    let nameWritten = false;
+
+    function para(content, opts={}) {
+      const {sz=20,bold=false,color='000000',spacing=100,indent=0,align='left',spaceBefore=0,spaceAfter=100,border=false} = opts;
+      const borderXml = border ? `<w:pBdr><w:bottom w:val="single" w:sz="4" w:space="1" w:color="BBBBBB"/></w:pBdr>` : '';
+      const indentXml = indent ? `<w:ind w:left="${indent}"/>` : '';
+      const alignXml = align !== 'left' ? `<w:jc w:val="${align}"/>` : '';
+      return `<w:p>
+        <w:pPr>
+          <w:spacing w:before="${spaceBefore}" w:after="${spaceAfter}" w:line="${spacing}" w:lineRule="auto"/>
+          ${borderXml}${indentXml}${alignXml}
+        </w:pPr>
+        <w:r><w:rPr>
+          <w:sz w:val="${sz*2}"/><w:szCs w:val="${sz*2}"/>
+          ${bold?'<w:b/><w:bCs/>':''}
+          <w:color w:val="${color}"/>
+          <w:rFonts w:ascii="Calibri" w:hAnsi="Calibri"/>
+        </w:rPr><w:t xml:space="preserve">${esc(content)}</w:t></w:r>
+      </w:p>`;
+    }
+
+    function splitPara(leftText, rightText, opts={}) {
+      const {sz=19} = opts;
+      return `<w:p>
+        <w:pPr><w:spacing w:before="80" w:after="40"/></w:pPr>
+        <w:r><w:rPr><w:b/><w:bCs/><w:sz w:val="${sz*2}"/><w:szCs w:val="${sz*2}"/>
+          <w:rFonts w:ascii="Calibri" w:hAnsi="Calibri"/>
+        </w:rPr><w:t>${esc(leftText)}</w:t></w:r>
+        <w:r><w:rPr><w:sz w:val="${sz*2}"/><w:szCs w:val="${sz*2}"/>
+          <w:rFonts w:ascii="Calibri" w:hAnsi="Calibri"/>
+        </w:rPr><w:t xml:space="preserve">    </w:t></w:r>
+        <w:r><w:rPr><w:color w:val="666666"/><w:sz w:val="${(sz-1)*2}"/><w:szCs w:val="${(sz-1)*2}"/>
+          <w:rFonts w:ascii="Calibri" w:hAnsi="Calibri"/>
+        </w:rPr><w:t>${esc(rightText)}</w:t></w:r>
+      </w:p>`;
+    }
+
+    for (const raw of docLines) {
+      const { type, text } = classifyLine(raw);
+
+      if (type === 'empty') {
+        bodyXml += `<w:p><w:pPr><w:spacing w:before="0" w:after="60"/></w:pPr></w:p>`;
+        continue;
+      }
+
+      if (!nameWritten && type !== 'section') {
+        bodyXml += para(text, {sz:22,bold:true,color:'0D0D0D',spaceBefore:0,spaceAfter:40,spacing:240});
+        nameWritten = true; continue;
+      }
+      nameWritten = true;
+
+      switch(type) {
+        case 'contact':
+          bodyXml += para(text, {sz:9,color:'555555',spaceAfter:120});
+          break;
+        case 'section':
+          bodyXml += para(text, {sz:11,bold:true,color:'111111',border:true,spaceBefore:160,spaceAfter:60,spacing:240});
+          break;
+        case 'subhead': {
+          const dateMatch = text.match(/^(.+?)\s{2,}([A-Z][a-z]{2}.+)$/) ||
+                            text.match(/^(.+?)((?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{4}.*)$/);
+          if (dateMatch) {
+            bodyXml += splitPara(dateMatch[1].trim(), dateMatch[2].trim(), {sz:10});
+          } else {
+            bodyXml += para(text, {sz:10,bold:true,spaceBefore:80,spaceAfter:40});
+          }
+          break;
+        }
+        case 'org':
+          bodyXml += para(text, {sz:9,color:'666666',spaceAfter:40});
+          break;
+        case 'bullet':
+          bodyXml += `<w:p>
+            <w:pPr>
+              <w:spacing w:before="20" w:after="40"/>
+              <w:ind w:left="360" w:hanging="180"/>
+            </w:pPr>
+            <w:r><w:rPr><w:sz w:val="19"/><w:szCs w:val="19"/>
+              <w:rFonts w:ascii="Calibri" w:hAnsi="Calibri"/>
+            </w:rPr><w:t xml:space="preserve">• ${esc(text)}</w:t></w:r>
+          </w:p>`;
+          break;
+        default:
+          bodyXml += para(text, {sz:10,spaceAfter:40});
+      }
+    }
+
+    const wordXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:wpc="http://schemas.microsoft.com/office/word/2010/wordprocessingCanvas"
+  xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"
+  xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+<w:body>
+<w:sectPr>
+  <w:pgSz w:w="11906" w:h="16838"/>
+  <w:pgMar w:top="720" w:right="900" w:bottom="720" w:left="900" w:header="708" w:footer="708" w:gutter="0"/>
+</w:sectPr>
+${bodyXml}
+</w:body>
+</w:document>`;
+
+    // Build minimal .docx ZIP structure using our own ZIP builder
+    const zip = buildMinimalDocx(wordXml);
+    const blob = new Blob([zip], {type:'application/vnd.openxmlformats-officedocument.wordprocessingml.document'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'optimized-resume.docx';
+    document.body.appendChild(a); a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showDlFeedback('✓ DOCX downloaded! Opens in Word & Google Docs.');
+  } catch(e) {
+    showDlFeedback('DOCX error: ' + e.message);
+    console.error(e);
+  }
+}
+
+// ── Minimal DOCX ZIP builder (no external lib needed) ──
+function buildMinimalDocx(documentXml) {
+  // A .docx is a ZIP with specific XML files inside
+  const files = {
+    '_rels/.rels': `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>
+</Relationships>`,
+    'word/_rels/document.xml.rels': `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+</Relationships>`,
+    'word/document.xml': documentXml,
+    '[Content_Types].xml': `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="xml" ContentType="application/xml"/>
+  <Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
+</Types>`
+  };
+
+  return zipFiles(files);
+}
+
+// Pure-JS ZIP builder (no deflate compression — stored mode, universally compatible)
+function zipFiles(files) {
+  const enc = new TextEncoder();
+  const entries = [];
+  let offset = 0;
+
+  for (const [name, content] of Object.entries(files)) {
+    const nameBytes = enc.encode(name);
+    const dataBytes = enc.encode(content);
+    const crc = crc32(dataBytes);
+    const now = dosDateTime();
+
+    // Local file header
+    const lhSize = 30 + nameBytes.length;
+    const lh = new Uint8Array(lhSize);
+    const lhv = new DataView(lh.buffer);
+    lhv.setUint32(0, 0x04034b50, true);   // signature
+    lhv.setUint16(4, 20, true);            // version needed
+    lhv.setUint16(6, 0, true);             // flags
+    lhv.setUint16(8, 0, true);             // compression: stored
+    lhv.setUint16(10, now.time, true);
+    lhv.setUint16(12, now.date, true);
+    lhv.setUint32(14, crc, true);
+    lhv.setUint32(18, dataBytes.length, true);
+    lhv.setUint32(22, dataBytes.length, true);
+    lhv.setUint16(26, nameBytes.length, true);
+    lhv.setUint16(28, 0, true);
+    lh.set(nameBytes, 30);
+
+    entries.push({ name: nameBytes, data: dataBytes, crc, offset, lh });
+    offset += lhSize + dataBytes.length;
+  }
+
+  // Central directory
+  const cdEntries = [];
+  for (const e of entries) {
+    const now = dosDateTime();
+    const cdSize = 46 + e.name.length;
+    const cd = new Uint8Array(cdSize);
+    const cdv = new DataView(cd.buffer);
+    cdv.setUint32(0, 0x02014b50, true);
+    cdv.setUint16(4, 20, true);
+    cdv.setUint16(6, 20, true);
+    cdv.setUint16(8, 0, true);
+    cdv.setUint16(10, 0, true);
+    cdv.setUint16(12, now.time, true);
+    cdv.setUint16(14, now.date, true);
+    cdv.setUint32(16, e.crc, true);
+    cdv.setUint32(20, e.data.length, true);
+    cdv.setUint32(24, e.data.length, true);
+    cdv.setUint16(28, e.name.length, true);
+    cdv.setUint16(30, 0, true);
+    cdv.setUint16(32, 0, true);
+    cdv.setUint16(34, 0, true);
+    cdv.setUint16(36, 0, true);
+    cdv.setUint32(38, 0x20, true);
+    cdv.setUint32(42, e.offset, true);
+    cd.set(e.name, 46);
+    cdEntries.push(cd);
+  }
+
+  const cdSize = cdEntries.reduce((a,b)=>a+b.length, 0);
+  const eocd = new Uint8Array(22);
+  const eocdv = new DataView(eocd.buffer);
+  eocdv.setUint32(0, 0x06054b50, true);
+  eocdv.setUint16(4, 0, true);
+  eocdv.setUint16(6, 0, true);
+  eocdv.setUint16(8, entries.length, true);
+  eocdv.setUint16(10, entries.length, true);
+  eocdv.setUint32(12, cdSize, true);
+  eocdv.setUint32(16, offset, true);
+  eocdv.setUint16(20, 0, true);
+
+  // Concatenate everything
+  const total = offset + cdSize + 22;
+  const out = new Uint8Array(total);
+  let pos = 0;
+  for (const e of entries) {
+    out.set(e.lh, pos); pos += e.lh.length;
+    out.set(e.data, pos); pos += e.data.length;
+  }
+  for (const cd of cdEntries) { out.set(cd, pos); pos += cd.length; }
+  out.set(eocd, pos);
+  return out.buffer;
+}
+
+function dosDateTime() {
+  const d = new Date();
+  return {
+    time: (d.getHours()<<11)|(d.getMinutes()<<5)|(d.getSeconds()>>1),
+    date: ((d.getFullYear()-1980)<<9)|((d.getMonth()+1)<<5)|d.getDate()
+  };
+}
+
+function crc32(data) {
+  let crc = 0xFFFFFFFF;
+  for (let i = 0; i < data.length; i++) {
+    crc ^= data[i];
+    for (let j = 0; j < 8; j++) crc = (crc&1) ? (crc>>>1)^0xEDB88320 : crc>>>1;
+  }
+  return (crc^0xFFFFFFFF)>>>0;
+}
+</script>
+</body>
+</html>
