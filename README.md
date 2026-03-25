@@ -6,7 +6,7 @@
 
 ## 🌐 Live Demo
 
-**[▶ Try it Live](https://somathghara.github.io/resume-ai-editor)**
+**[▶ Try it Live]([https://somathghara.github.io/resume-ai-editor](https://somgit001.github.io/resume-ai-editor/))**
 
 ---
 
